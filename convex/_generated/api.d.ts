@@ -8,6 +8,7 @@
  * @module
  */
 
+import type * as appMeta from "../appMeta.js";
 import type * as auth from "../auth.js";
 import type * as commentModeration from "../commentModeration.js";
 import type * as comments from "../comments.js";
@@ -106,6 +107,7 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  appMeta: typeof appMeta;
   auth: typeof auth;
   commentModeration: typeof commentModeration;
   comments: typeof comments;

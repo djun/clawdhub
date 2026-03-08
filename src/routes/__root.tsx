@@ -4,6 +4,7 @@ import { TanStackRouterDevtoolsPanel } from '@tanstack/react-router-devtools'
 import { Analytics } from '@vercel/analytics/react'
 import { AppProviders } from '../components/AppProviders'
 import { ClientOnly } from '../components/ClientOnly'
+import { DeploymentDriftBanner } from '../components/DeploymentDriftBanner'
 import { Footer } from '../components/Footer'
 import Header from '../components/Header'
 import { getSiteDescription, getSiteMode, getSiteName, getSiteUrlForMode } from '../lib/site'
@@ -110,6 +111,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
           <AppProviders>
             <div className="app-shell">
               <Header />
+              <DeploymentDriftBanner />
               {children}
               <Footer />
             </div>

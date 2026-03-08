@@ -57,6 +57,16 @@ Run against prod:
 PLAYWRIGHT_BASE_URL=https://clawhub.ai bun run test:pw
 ```
 
+Authenticated prod canary:
+
+```
+PLAYWRIGHT_BASE_URL=https://clawhub.ai \
+PLAYWRIGHT_AUTH_STORAGE_STATE=/path/to/storage-state.json \
+bunx playwright test e2e/upload-auth-smoke.pw.test.ts
+```
+
+Capture `storage-state.json` once with Playwright or browser devtools after GitHub login.
+
 Run against a local preview server:
 
 ```

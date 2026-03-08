@@ -17,7 +17,15 @@ ClawHub is two deployables:
 From your local machine:
 
 ```bash
+bunx convex env set APP_BUILD_SHA "$(git rev-parse HEAD)" --prod
+bunx convex env set APP_DEPLOYED_AT "$(date -u +"%Y-%m-%dT%H:%M:%SZ")" --prod
 bunx convex deploy
+```
+
+Or use the GitHub Actions pipeline:
+
+```bash
+gh workflow run deploy.yml
 ```
 
 Ensure Convex env is set (auth + embeddings):
@@ -40,6 +48,16 @@ Set env vars:
 - `VITE_CONVEX_SITE_URL` (Convex “site” URL)
 - `CONVEX_SITE_URL` (same value; used by auth provider config)
 - `SITE_URL` (web app URL)
+- `VITE_APP_BUILD_SHA` (set to the same commit SHA stamped into Convex)
+
+Deploy order:
+
+1. Convex
+2. contract verify
+3. web
+4. smoke
+
+Do not let Vercel auto-promote a newer web build before Convex is deployed.
 
 ## 3) Route `/api/*` to Convex
 
@@ -90,6 +108,13 @@ Confirm headers are present:
 - `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Reset`
 - `RateLimit-Limit`, `RateLimit-Remaining`, `RateLimit-Reset`
 - `Retry-After` on `429`
+
+Drift checks:
+
+```bash
+bun run verify:convex-contract -- --prod
+PLAYWRIGHT_BASE_URL=https://clawhub.ai bunx playwright test e2e/menu-smoke.pw.test.ts e2e/upload-auth-smoke.pw.test.ts
+```
 
 Proxy/IP caveat:
 

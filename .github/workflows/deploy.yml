@@ -1,0 +1,96 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: true
+
+jobs:
+  deploy-convex:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_DEPLOY_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.6
+
+      - name: Install
+        run: bun install --frozen-lockfile
+
+      - name: Stamp Convex build SHA
+        run: bunx convex env set APP_BUILD_SHA "${GITHUB_SHA}" --prod
+
+      - name: Stamp Convex deploy time
+        run: bunx convex env set APP_DEPLOYED_AT "$(date -u +"%Y-%m-%dT%H:%M:%SZ")" --prod
+
+      - name: Deploy Convex
+        run: bun run convex:deploy
+
+      - name: Verify Convex contract
+        run: bun run verify:convex-contract -- --prod
+
+  deploy-web:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: deploy-convex
+    env:
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      VITE_APP_BUILD_SHA: ${{ github.sha }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.6
+
+      - name: Install
+        run: bun install --frozen-lockfile
+
+      - name: Pull Vercel config
+        run: bunx vercel pull --yes --environment=production --token "$VERCEL_TOKEN"
+
+      - name: Build Vercel app
+        run: bunx vercel build --prod --token "$VERCEL_TOKEN"
+
+      - name: Deploy Vercel app
+        run: bunx vercel deploy --prebuilt --prod --token "$VERCEL_TOKEN"
+
+  smoke-production:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs:
+      - deploy-convex
+      - deploy-web
+    env:
+      PLAYWRIGHT_BASE_URL: https://clawhub.ai
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.6
+
+      - name: Install
+        run: bun install --frozen-lockfile
+
+      - name: Install Playwright browser
+        run: bunx playwright install --with-deps chromium
+
+      - name: Write authenticated storage state
+        if: ${{ secrets.PLAYWRIGHT_AUTH_STORAGE_STATE_JSON != '' }}
+        run: |
+          cat > "$RUNNER_TEMP/playwright-auth.json" <<'EOF'
+          ${{ secrets.PLAYWRIGHT_AUTH_STORAGE_STATE_JSON }}
+          EOF
+          echo "PLAYWRIGHT_AUTH_STORAGE_STATE=$RUNNER_TEMP/playwright-auth.json" >> "$GITHUB_ENV"
+
+      - name: Smoke test production
+        run: bunx playwright test e2e/menu-smoke.pw.test.ts e2e/upload-auth-smoke.pw.test.ts
